@@ -1,0 +1,12 @@
+venv/lib
+/venv
+.vscode
+/build
+/test
+.env
+/install
+/test
+/log
+/known_faces
+test
+__pycache__
