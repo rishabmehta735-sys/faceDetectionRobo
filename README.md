@@ -46,8 +46,8 @@ Uses the system's microphone to capture audio and handles voice-to-text and text
 
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd <repo-name>
+git clone https://github.com/rishabmehta735-sys/faceDetectionRobo.git
+
 
 # Set up Python virtual environment
 python3 -m venv venv
@@ -58,8 +58,6 @@ pip install -r requirements.txt
 colcon build --symlink-install
 source install/setup.bash
 
-# Launch the robot
-ros2 launch <package_name> face_robot.launch.py
 ```
 
 > **Note:** If running nodes individually via `ros2 run`, ensure your virtualenv's `site-packages` is on `PYTHONPATH`, since `ros2 run` uses its own interpreter and won't see venv-installed packages by default.
@@ -72,6 +70,3 @@ ros2 launch <package_name> face_robot.launch.py
 - [ ] Emotion/expression detection
 - [ ] Dockerized deployment for reproducible environments
 
-## License
-
-Add your license here.
