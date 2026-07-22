@@ -22,7 +22,6 @@ class VoiceInterfaceNode(Node):
 
         # Load Faster-Whisper model (choose size: tiny, base, small, medium, large)
         self.model = WhisperModel("base", device="cpu")  # use "cuda" if GPU available
-        self.samplerate = 16000 # Audio recording rate to 16 kHz
 
         self.get_logger().info("✅ Voice Interface Node started (Faster-Whisper + Edge-TTS)")
 
@@ -47,36 +46,39 @@ class VoiceInterfaceNode(Node):
             os.system(f"ffplay -nodisp -autoexit {fp.name}")
 
     # ---------- SPEECH → TEXT ----------
+
     def listen_and_publish(self):
-        duration = 10  # seconds to record
-        self.get_logger().info("🎙️ Listening… speak now.")
-        audio = sd.rec(int(duration * self.samplerate),
-                       samplerate=self.samplerate, channels=1, dtype='float32')
-        sd.wait()
-        # Here In this function we are recording the speech for 10 seconds 
-        # after that when it is being processed it is not listening
-        print("audio value is ",round(np.max(np.abs(audio)), 2))
-        volume = np.std(audio)
-        print("volume is ",volume)
-        rms = np.sqrt(np.mean(audio**2))
-        if volume < 0.004: 
-             self.get_logger().info("🕳️ Silent or very low speech — skipping.")
-             return
-      
-        self.get_logger().info("⏹️ Recording stopped. Processing…")
+        try:
+            duration = 10
+            device_info = sd.query_devices(sd.default.device[0], 'input')
+           
+            native_rate = int(device_info['default_samplerate'])
 
-        # Save temporary WAV file
-        wav_path = tempfile.mktemp(suffix=".wav")
-        sf.write(wav_path, audio, self.samplerate)
+            self.get_logger().info("🎙️ Listening… speak now.")
+            audio = sd.rec(int(duration * native_rate),
+                            samplerate=native_rate, channels=2, dtype='float32', device=4)
+            sd.wait()
 
-        # Transcribe using Faster-Whisper
-        segments, info = self.model.transcribe(wav_path, beam_size=5)
-        text = " ".join([segment.text for segment in segments]).strip().lower()
-        if text:
-            self.get_logger().info(f"🗣️ Recognized: {text}")
-            msg = String()
-            msg.data = text
-            self.asr_publisher.publish(msg)
+            volume = np.std(audio)
+            
+            if volume < 0.004:
+                self.get_logger().info("🕳️ Silent or very low speech — skipping.")
+                return
+
+            self.get_logger().info("⏹️ Recording stopped. Processing…")
+
+            wav_path = tempfile.mktemp(suffix=".wav")
+            sf.write(wav_path, audio, native_rate)  # write at the TRUE rate it was recorded at
+
+            segments, info = self.model.transcribe(wav_path, beam_size=5)
+            text = " ".join([segment.text for segment in segments]).strip().lower()
+            if text:
+                self.get_logger().info(f"🗣️ Recognized: {text}")
+                msg = String()
+                msg.data = text
+                self.asr_publisher.publish(msg)
+        except Exception as e:
+             self._logger("Error", e)
 
 
 def main(args=None):
