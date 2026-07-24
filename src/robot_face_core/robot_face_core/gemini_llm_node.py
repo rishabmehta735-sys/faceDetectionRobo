@@ -29,19 +29,26 @@ DATA_PATH = os.path.expanduser("~/ros2_ws/data/people.json")
 
 class GeminiLLMNode(Node):
     def __init__(self):
-        super().__init__('gemini_llm_node')
-        self.api_key = api_key
-        genai.configure(api_key=self.api_key)
-        self.create_subscription(String, '/voice/asr',self.tts_callback, 10)
-        # print("self.create_subscription:",self.create_subscription)
+        
+            super().__init__('gemini_llm_node')
+            self.get_logger().info("Gemini node activated")
+            self.api_key = api_key
+            genai.configure(api_key=self.api_key)
+            self.create_subscription(String, '/voice/asr',self.tts_callback, 10)
+            # Gemini node worked on audio device if 7 (default one) where mic icon will appear
+            # print("self.create_subscription:",self.create_subscription)
+        
 
     def tts_callback(self, msg):
-        print("message is :",msg)
-        text = msg.data.strip()
-        print("text from sub is :",text)
-        self.extract_person_info(text)
-      
-        self.get_logger().info(f"Message {text}")
+        try:
+            print("!!!!! CALLBACK FIRED !!!!!")
+            text = msg.data.strip()
+            print("text from sub is :",text)
+            self.extract_person_info(text)
+        
+            self.get_logger().info(f"Message {text}")
+        except Exception as e:
+            print(e)
 
         
 
@@ -53,7 +60,7 @@ class GeminiLLMNode(Node):
 
 
 # ---------- LLM-based extraction ----------
-    def extract_person_info(text: str):
+    def extract_person_info(self,text: str):
         prompt = f"""
     You are a JSON extractor. From the following text, extract the person's name and occupation.
     Example:
@@ -68,10 +75,12 @@ class GeminiLLMNode(Node):
         response = model.generate_content(prompt)
         raw = response.text.strip().strip("`")
         try:
-            # print("reaching",raw)
+            print("reaching",raw)
             return raw
             # return json.loads(raw)
-        except Exception:
+        except Exception as e:
+            self.get_logger().error(e)
+
             return {}
 
 

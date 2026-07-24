@@ -27,6 +27,7 @@ class VoiceInterfaceNode(Node):
 
         # Timer to continuously listen (every ~10 s)
         self.create_timer(10.0, self.listen_and_publish)
+        self.testAudio()
 
     # ---------- TEXT → SPEECH ----------
     def tts_callback(self, msg):
@@ -47,6 +48,18 @@ class VoiceInterfaceNode(Node):
 
     # ---------- SPEECH → TEXT ----------
 
+    def testAudio(self):
+        try:
+            fs = 48000
+            duration = 5  
+
+            devices = sd.query_devices()
+            for i, d in enumerate(devices):
+                 print(i, d['name'], "| in:", d['max_input_channels'], "| out:", d['max_output_channels'])
+        except Exception as e:
+            print(e)
+
+
     def listen_and_publish(self):
         try:
             duration = 10
@@ -56,7 +69,7 @@ class VoiceInterfaceNode(Node):
 
             self.get_logger().info("🎙️ Listening… speak now.")
             audio = sd.rec(int(duration * native_rate),
-                            samplerate=native_rate, channels=2, dtype='float32', device=4)
+                            samplerate=native_rate, channels=2, dtype='float32', device=7)
             sd.wait()
 
             volume = np.std(audio)
@@ -77,6 +90,7 @@ class VoiceInterfaceNode(Node):
                 msg = String()
                 msg.data = text
                 self.asr_publisher.publish(msg)
+                self.get_logger().info("Text sent")
         except Exception as e:
              self._logger("Error", e)
 
