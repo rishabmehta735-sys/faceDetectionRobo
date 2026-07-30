@@ -9,6 +9,8 @@ import os
 import pickle
 from deepface import DeepFace #type: ignore
 from scipy.spatial.distance import cosine # For fast distance calculation
+from std_msgs.msg import String
+import uuid
 
 
 # ArcFace is used for representation/verification because it's a good balance of accuracy and speed.
@@ -28,22 +30,29 @@ class FaceRecognitionNode(Node):
     def __init__(self):
         try:
             super().__init__('face_recognition_node')
+
+            self.memory_path = "known_faces"
+            os.makedirs(self.memory_path, exist_ok=True)
+            self.get_logger().info("Reaching to load_embeddings")
+
+            self.load_known_embeddings()
+
             self.bridge = CvBridge()
             self.subscription = self.create_subscription(
                 Image,
                 '/camera/image_raw',
                 self.listener_callback,
-                1
+                10
             )
+            self.currentId = "0"
             self.publisher = self.create_publisher(Image, '/face_recognition/image', 10)
+            self.publish_faceId = self.create_publisher(String,"/faceId",4)
             
             # --- Memory Caching Setup ---
-            self.memory_path = "known_faces"
-            os.makedirs(self.memory_path, exist_ok=True)
+           
             # Dictionary to hold the pre-calculated embeddings: {'user_name': numpy_embedding_vector}
-            self.known_embeddings = {}
-            self.get_logger().info("Reaching to load_embeddings")
-            self.load_known_embeddings()
+            
+           
             
             self.get_logger().info("✅ Face Recognition Node Started")
         except Exception as e:
@@ -53,11 +62,13 @@ class FaceRecognitionNode(Node):
     # Initialization: Load and cache embeddings
     # -------------------------------------
     def load_known_embeddings(self):
+        self.known_embeddings = {}
         self.get_logger().info("Loading and calculating known face embeddings...")
         
         # 1. Clean up old .jpg files and look for new ones
         for file_name in os.listdir(self.memory_path):
             if file_name.endswith(".jpg"):
+                
                 user_name = file_name[:-4]
                 file_path = os.path.join(self.memory_path, file_name)
                 
@@ -104,10 +115,9 @@ class FaceRecognitionNode(Node):
     # -------------------------------------
     def save_new_face(self, detected_face_crop):
         try:
-            # 1. Generate the name
-            new_id = len(self.known_embeddings) + 1
-            new_name = f"person_{new_id}"
-            file_path = os.path.join(self.memory_path, f"{new_name}.jpg")
+            # 1. Generate the id
+            id = str(uuid.uuid4())
+            file_path = os.path.join(self.memory_path, f"{id}.jpg")
 
             # 2. Save the image file (for persistence)
             cv2.imwrite(file_path, detected_face_crop)
@@ -120,9 +130,9 @@ class FaceRecognitionNode(Node):
                 enforce_detection=True
             )[0]["embedding"]
             
-            self.known_embeddings[new_name] = new_embedding
-            self.get_logger().info(f"🧠 New face stored as {new_name}")
-            return new_name
+            self.known_embeddings[id] = new_embedding
+            self.get_logger().info(f"🧠 New face stored as {id}")
+            return id
             
         except Exception as e:
             self.get_logger().error(f"Error saving new face: {e}")
@@ -138,7 +148,7 @@ class FaceRecognitionNode(Node):
             # --- OPTIMIZATION 1: Frame Skipping ---
             # The frame is still processed, but the heavy DeepFace call is skipped.
             self.frame_count = getattr(self, 'frame_count', 0) + 1
-            self.skip_rate = 3  # Process roughly 10 FPS / 3 = 3.3 FPS
+            self.skip_rate = 5  # Process roughly 10 FPS / 3 = 3.3 FPS
             
             if self.frame_count % self.skip_rate != 0:
                 # If skipping, just publish the raw frame or the last annotated frame
@@ -150,7 +160,7 @@ class FaceRecognitionNode(Node):
             detections = DeepFace.extract_faces(
                 img_path=frame,
                 detector_backend=DETECTOR_BACKEND, 
-                enforce_detection=False # Allows processing even if DeepFace is unsure
+                enforce_detection=True 
                 )
 
             for face in detections:
@@ -168,11 +178,18 @@ class FaceRecognitionNode(Node):
                 img_path=detected_face, 
                 model_name=RECOGNITION_MODEL, 
                 detector_backend=DETECTOR_BACKEND, # Ensure same detector is used for consistency
-                enforce_detection=False
+                enforce_detection=True
                 )[0]["embedding"]
                     
                 # 2. Find the match using the fast NumPy comparison
                 match_name = self.find_match(detected_embedding)
+                print("match_name",match_name)
+                if self.currentId != match_name and match_name != "Unknown" :
+
+                    temp = String(data=match_name)
+                    self.publish_faceId.publish(temp)
+                    self.currentId = match_name
+                    print("match_name",match_name)
 
                 if match_name != "Unknown":
                     # Known Face

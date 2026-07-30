@@ -28,7 +28,7 @@ setup(
             'camera_node = robot_face_core.camera_node:main',
             'face_recognition_node = robot_face_core.face_recognition_node:main',
             'voice_interface_node = robot_face_core.voice_interface_node:main',
-            'gemini_llm_node = robot_face_core.gemini_llm_node:main',
+            'brain_node = robot_face_core.brain_node:main',
         ],
     },
 )

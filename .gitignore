@@ -10,3 +10,4 @@ venv/lib
 /known_faces
 test
 __pycache__
+Interaction.db
