@@ -66,9 +66,11 @@ class BrainNode(Node):
         try:
           
             summary = cursor.execute(f"SELECT summary from ChatSummary where faceId='{self.currentFaceId}' ORDER BY createdDateTimeUtc ASC ")
+            summary = summary.fetchone()
+            if summary:
+                return summary
+            return None
                
-            print("summary",summary)
-            return summary
         except Exception as e:
             self.get_logger().error(str(e))
 
