@@ -75,19 +75,31 @@ class BrainNode(Node):
 
 
 
-    def insertOrUpdateSummary(self,summary):
+    def insertOrUpdateSummary(self, summary):
         try:
-            if cursor.execute(f"SELECT * FROM ChatSummary WHERE FaceId = '{self.currentFaceId}'"):
+            cursor.execute(
+                "SELECT * FROM ChatSummary WHERE FaceId = ?",
+                (self.currentFaceId,)
+            )
+            row = cursor.fetchone()
+            print("ROW IS ",row)
 
-                cursor.execute(f"UPDATE ChatSummary SET summary = '{summary}, updatedDateTimeUtc = '{datetime.now(timezone.utc).isoformat()}' WHERE FaceId = '{self.currentFaceId}' ")
-
-            else :cursor.execute("INSERT INTO ChatSummary(faceId,summary) VALUES (?,?);",(self.currentFaceId,summary))
+            if row:
+                cursor.execute(
+                    "UPDATE ChatSummary SET summary = ?, updatedDateTimeUtc = ? WHERE FaceId = ?",
+                    (summary, datetime.now(timezone.utc).isoformat(), self.currentFaceId)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO ChatSummary(faceId, summary) VALUES (?, ?);",
+                    (self.currentFaceId, summary)
+                )
 
             connection.commit()
-            self.get_logger().info("Summary created/updatedin db")
+            self.get_logger().info("Summary created/updated in db")
 
         except Exception as e:
-            print("Error in Smmary",e)
+            print("Error in Summary", e)
             self.get_logger().error(str(e))
             connection.rollback()
         

@@ -205,10 +205,11 @@ class FaceRecognitionNode(Node):
                     # In a production system, this should be done only on a dedicated "enrollment" command.
                         
                     # For a quick start, we save it instantly:
-                    new_id = self.save_new_face(detected_face)
+                    # new_id = self.save_new_face(detected_face)
+                    print("Should be solved")
                         
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
-                    cv2.putText(frame, new_id, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    # cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                    # cv2.putText(frame, new_id, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
           
      
         except Exception as e:
