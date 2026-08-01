@@ -9,7 +9,7 @@ import os
 import sounddevice as sd
 import soundfile as sf
 import numpy as np
-from faster_whisper import WhisperModel
+from faster_whisper import WhisperModel # encoder-decoder model
 
 
 class VoiceInterfaceNode(Node):
@@ -17,7 +17,7 @@ class VoiceInterfaceNode(Node):
         super().__init__('voice_interface_node')
 
         # ROS topics
-        self.isAudioListeningEnabled = True
+        self.isAudioListeningEnabled = False
         self.create_subscription(String, '/robot_text', self.tts_callback, 1) #listens for the text message that robot should speak
         self.asr_publisher = self.create_publisher(String, '/voice/asr', 10) #After the robot listens and converts speech → text, it sends (publishes) that recognized text here so other nodes can use it
         
@@ -29,10 +29,13 @@ class VoiceInterfaceNode(Node):
         # Timer to continuously listen (every ~10 s)
         # self.listen_and_publish()
         self.create_timer(3, self.listen_and_publish)
+        self.create_subscription(String,"/faceId",self.startVoiceInput,4)
         
-        # self.listen_and_publish()
-        # self.testAudio()
-        # asyncio.run(self.speak("I am chitti"))
+
+    def startVoiceInput(self,msg):
+        if msg.data:
+             self.isAudioListeningEnabled = True
+        else: self.isAudioListeningEnabled = False
      
         
 

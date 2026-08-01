@@ -14,9 +14,9 @@ import uuid
 
 
 # ArcFace is used for representation/verification because it's a good balance of accuracy and speed.
-RECOGNITION_MODEL = 'ArcFace'
+RECOGNITION_MODEL = 'Facenet512'
 # 'opencv' is much faster than 'retinaface' for real-time detection, but less accurate.
-DETECTOR_BACKEND = 'mediapipe' 
+DETECTOR_BACKEND = 'retinaface' 
 # Maximum allowable distance for two faces to be considered the same person (check DeepFace documentation for model thresholds)
 # For ArcFace, a common threshold is around 0.68. Distance < Threshold = Match.
 VERIFICATION_THRESHOLD = 0.68 
@@ -37,7 +37,7 @@ class FaceRecognitionNode(Node):
 
             self.load_known_embeddings()
 
-            self.bridge = CvBridge()
+            self.bridge = CvBridge() # CvBridge is an object that converts between OpenCV Images and ROS Image messages.
             self.subscription = self.create_subscription(
                 Image,
                 '/camera/image_raw',
@@ -45,7 +45,7 @@ class FaceRecognitionNode(Node):
                 10
             )
             self.currentId = "0"
-            self.publisher = self.create_publisher(Image, '/face_recognition/image', 10)
+            # self.publisher = self.create_publisher(Image, '/face_recognition/image', 10)
             self.publish_faceId = self.create_publisher(String,"/faceId",4)
             
             # --- Memory Caching Setup ---
@@ -76,8 +76,8 @@ class FaceRecognitionNode(Node):
                     # DeepFace.represent calculates the 512-dimensional vector (embedding) once
                     result = DeepFace.represent(
                         img_path=file_path, 
-                        model_name=RECOGNITION_MODEL, 
-                        detector_backend=DETECTOR_BACKEND,
+                        model_name=RECOGNITION_MODEL, # Stage 2 - generate the vector embedding of the face
+                        detector_backend=DETECTOR_BACKEND, # Stage 1 - find the face in the whole frame
                         enforce_detection=True # Ensures we only store valid faces
                     )
                     # DeepFace.represent returns a list of dictionaries; we take the first embedding
@@ -143,23 +143,23 @@ class FaceRecognitionNode(Node):
     # -------------------------------------
     def listener_callback(self, msg):
         try:
+            
             frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
             
             # --- OPTIMIZATION 1: Frame Skipping ---
             # The frame is still processed, but the heavy DeepFace call is skipped.
             self.frame_count = getattr(self, 'frame_count', 0) + 1
-            self.skip_rate = 5  # Process roughly 10 FPS / 3 = 3.3 FPS
+            self.skip_rate = 5  # Process roughly 10 FPS / 5 = 3.3 FPS
             
             if self.frame_count % self.skip_rate != 0:
                 # If skipping, just publish the raw frame or the last annotated frame
-                self.publisher.publish(self.bridge.cv2_to_imgmsg(frame, 'bgr8'))
+                # self.publisher.publish(self.bridge.cv2_to_imgmsg(frame, 'bgr8'))
                 return
 
-            
             # OPTIMIZATION 2: Use faster detector backend
             detections = DeepFace.extract_faces(
                 img_path=frame,
-                detector_backend=DETECTOR_BACKEND, 
+                detector_backend=DETECTOR_BACKEND,  # Stage 1 find the face in the frame
                 enforce_detection=True 
                 )
 
@@ -176,14 +176,14 @@ class FaceRecognitionNode(Node):
                 # instead of once for EVERY KNOWN face (as in your old loop).
                 detected_embedding = DeepFace.represent(
                 img_path=detected_face, 
-                model_name=RECOGNITION_MODEL, 
-                detector_backend=DETECTOR_BACKEND, # Ensure same detector is used for consistency
+                model_name=RECOGNITION_MODEL, # Stage 2 Analze and return vector embeddings
+                detector_backend=DETECTOR_BACKEND, # Stage 1 find the face in the frame
                 enforce_detection=True
                 )[0]["embedding"]
                     
-                # 2. Find the match using the fast NumPy comparison
+               
                 match_name = self.find_match(detected_embedding)
-                print("match_name",match_name)
+                # print("match_name",match_name)
                 if self.currentId != match_name and match_name != "Unknown" :
 
                     temp = String(data=match_name)
@@ -205,18 +205,18 @@ class FaceRecognitionNode(Node):
                     # In a production system, this should be done only on a dedicated "enrollment" command.
                         
                     # For a quick start, we save it instantly:
-                    # new_id = self.save_new_face(detected_face)
-                    print("Should be solved")
+                    new_id = self.save_new_face(detected_face)
+                    # print("Should be solved")
                         
-                    # cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
-                    # cv2.putText(frame, new_id, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                    cv2.putText(frame, new_id, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
           
      
         except Exception as e:
             self.get_logger().error(f"Major Error: {e}")
 
         # Publish annotated frame
-        self.publisher.publish(self.bridge.cv2_to_imgmsg(frame, 'bgr8'))
+        # self.publisher.publish(self.bridge.cv2_to_imgmsg(frame, 'bgr8'))
 
 # -------------------------------------
 # MAIN FUNCTION
