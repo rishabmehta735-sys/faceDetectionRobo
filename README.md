@@ -6,6 +6,8 @@ A ROS 2-based robot that detects faces, remembers people it has seen before, and
 
 The robot uses its onboard camera to detect and recognize faces. When it sees a new face, it remembers it; when it sees a face it already knows, it can recall who they are. A voice interface lets users talk to the robot naturally, with a Gemini-based LLM node acting as the reasoning core — deciding what to say and extracting structured information (like a person's name and occupation) from conversation.
 
+## Note - In order to use it flawlessly you may need gemini subscription,as tokens may get expire soon and system will throw an error !! 
+
 ## Features
 
 - **Real-time camera feed** using the system's built-in camera
@@ -32,6 +34,9 @@ Handles the robot's speech output, converting text responses into spoken audio.
 
 ### 5. `voice_interface_node`
 Uses the system's microphone to capture audio and handles voice-to-text and text-to-voice interaction logic.
+
+### 6. `brain_node`
+Generates a response and keeps track of user conversation
 
 ## Requirements
 
